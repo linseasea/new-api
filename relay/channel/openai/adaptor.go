@@ -19,6 +19,7 @@ import (
 	"github.com/QuantumNous/new-api/relay/channel"
 	"github.com/QuantumNous/new-api/relay/channel/ai360"
 	"github.com/QuantumNous/new-api/relay/channel/lingyiwanwu"
+	"github.com/QuantumNous/new-api/relay/helper"
 	"github.com/QuantumNous/new-api/relaykit/dto"
 
 	//"github.com/QuantumNous/new-api/relay/channel/minimax"
@@ -159,17 +160,17 @@ func (a *Adaptor) GetRequestURL(info *relaycommon.RelayInfo) (string, error) {
 			model_ = strings.Replace(model_, ".", "", -1)
 		}
 		// https://github.com/songquanpeng/one-api/issues/67
-		requestURL = fmt.Sprintf("/openai/deployments/%s/%s", model_, task)
+		requestURL = fmt.Sprintf("/openai/deployments/%s/%s", url.PathEscape(model_), task)
 		if info.RelayMode == relayconstant.RelayModeRealtime {
-			requestURL = fmt.Sprintf("/openai/realtime?deployment=%s&api-version=%s", model_, apiVersion)
+			requestURL = fmt.Sprintf("/openai/realtime?deployment=%s&api-version=%s", url.QueryEscape(model_), apiVersion)
 		}
 		return relaycommon.GetFullRequestURL(info.ChannelBaseUrl, requestURL, info.ChannelType), nil
 	//case constant.ChannelTypeMiniMax:
 	//	return minimax.GetRequestURL(info)
 	case constant.ChannelTypeCustom:
-		url := info.ChannelBaseUrl
-		url = strings.Replace(url, "{model}", info.UpstreamModelName, -1)
-		return url, nil
+		u := info.ChannelBaseUrl
+		u = strings.Replace(u, "{model}", url.QueryEscape(info.UpstreamModelName), -1)
+		return u, nil
 	default:
 		if (info.RelayFormat == types.RelayFormatClaude || info.RelayFormat == types.RelayFormatGemini) &&
 			info.RelayMode != relayconstant.RelayModeResponses &&
@@ -424,7 +425,7 @@ func (a *Adaptor) ConvertAudioRequest(c *gin.Context, info *relaycommon.RelayInf
 		}
 		defer file.Close()
 
-		part, err := writer.CreateFormFile("file", fileHeader.Filename)
+		part, err := writer.CreateFormFile("file", helper.SanitizeMultipartFilename(fileHeader.Filename))
 		if err != nil {
 			return nil, errors.New("create form file failed")
 		}
@@ -518,7 +519,7 @@ func (a *Adaptor) ConvertImageRequest(c *gin.Context, info *relaycommon.RelayInf
 
 				// Create a form file with the appropriate content type
 				h := make(textproto.MIMEHeader)
-				h.Set("Content-Disposition", fmt.Sprintf(`form-data; name="%s"; filename="%s"`, fieldName, fileHeader.Filename))
+				h.Set("Content-Disposition", fmt.Sprintf(`form-data; name="%s"; filename="%s"`, fieldName, helper.SanitizeMultipartFilename(fileHeader.Filename)))
 				h.Set("Content-Type", mimeType)
 
 				part, err := writer.CreatePart(h)
@@ -547,7 +548,7 @@ func (a *Adaptor) ConvertImageRequest(c *gin.Context, info *relaycommon.RelayInf
 
 				// Create a form file with the appropriate content type
 				h := make(textproto.MIMEHeader)
-				h.Set("Content-Disposition", fmt.Sprintf(`form-data; name="mask"; filename="%s"`, maskFiles[0].Filename))
+				h.Set("Content-Disposition", fmt.Sprintf(`form-data; name="mask"; filename="%s"`, helper.SanitizeMultipartFilename(maskFiles[0].Filename)))
 				h.Set("Content-Type", mimeType)
 
 				maskPart, err := writer.CreatePart(h)

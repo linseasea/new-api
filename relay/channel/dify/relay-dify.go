@@ -74,7 +74,7 @@ func uploadDifyFile(c *gin.Context, info *relaycommon.RelayInfo, user string, me
 		}
 
 		// Create form file
-		part, err := writer.CreateFormFile("file", fmt.Sprintf("image.%s", strings.TrimPrefix(mimeType, "image/")))
+		part, err := writer.CreateFormFile("file", helper.SanitizeMultipartFilename(fmt.Sprintf("image.%s", strings.TrimPrefix(mimeType, "image/"))))
 		if err != nil {
 			common.SysLog("failed to create form file: " + err.Error())
 			return nil

@@ -9,6 +9,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/textproto"
+	"net/url"
 	"strconv"
 	"strings"
 
@@ -86,7 +87,7 @@ func (a *Adaptor) ConvertImageRequest(c *gin.Context, info *relaycommon.RelayInf
 	}
 	info.UpstreamModelName = modelName
 
-	info.RequestURLPath = fmt.Sprintf("/v1/models/%s/predictions", modelName)
+	info.RequestURLPath = fmt.Sprintf("/v1/models/%s/predictions", url.PathEscape(modelName))
 
 	inputPayload := make(map[string]any)
 	inputPayload["prompt"] = request.Prompt

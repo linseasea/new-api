@@ -6,7 +6,9 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"os"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -59,8 +61,26 @@ func newProtectedFetchHTTPClient() *http.Client {
 	return newProtectedFetchHTTPClientWithDialer(nil, nil, nil)
 }
 
+// defaultProtectedProxyFunc decides whether the SSRF-protected client may route
+// through an HTTP(S) proxy. The protected client's dial-time validation is the
+// only control that binds a request to a specific resolved IP. When a proxy is
+// used, the proxy resolver performs the final DNS lookup, so a hostname with
+// split-horizon DNS or TTL=0 rebinding can bypass the private-IP/port filter
+// even though the gateway's one-shot URL validation passed. To keep the SSRF
+// filter effective for user-controlled URLs, the protected client therefore
+// defaults to direct connections (per-IP validation at dial time). Operators
+// that explicitly require proxying for these fetches must opt in with
+// NEW_API_SSRF_ALLOW_PROXY=1 and accept that only URL-level checks apply.
+func defaultProtectedProxyFunc() func(*http.Request) (*url.URL, error) {
+	if strings.EqualFold(os.Getenv("NEW_API_SSRF_ALLOW_PROXY"), "1") {
+		return http.ProxyFromEnvironment
+	}
+	// 返回一个显式的"直连"函数（不能返回 nil 函数，RoundTrip 会直接调用它）。
+	return func(*http.Request) (*url.URL, error) { return nil, nil }
+}
+
 func newProtectedFetchHTTPClientWithDialer(resolver ssrfResolver, dialContext func(ctx context.Context, network, address string) (net.Conn, error), getProtection func() (*common.SSRFProtection, bool, error)) *http.Client {
-	return newProtectedFetchHTTPClientWithProxy(resolver, dialContext, getProtection, http.ProxyFromEnvironment)
+	return newProtectedFetchHTTPClientWithProxy(resolver, dialContext, getProtection, defaultProtectedProxyFunc())
 }
 
 func newProtectedFetchHTTPClientWithProxy(resolver ssrfResolver, dialContext func(ctx context.Context, network, address string) (net.Conn, error), getProtection func() (*common.SSRFProtection, bool, error), proxy func(*http.Request) (*url.URL, error)) *http.Client {
@@ -78,7 +98,7 @@ func newProtectedFetchHTTPClientWithProxy(resolver ssrfResolver, dialContext fun
 		getProtection = currentFetchProtection
 	}
 	if proxy == nil {
-		proxy = http.ProxyFromEnvironment
+		proxy = defaultProtectedProxyFunc()
 	}
 
 	client := &http.Client{

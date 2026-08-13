@@ -2,6 +2,7 @@ package vertex
 
 import (
 	"fmt"
+	"net/url"
 	"strings"
 )
 
@@ -65,7 +66,7 @@ func BuildPublisherModelURL(baseURL, version, projectID, region, publisher, mode
 		"%s/publishers/%s/models/%s:%s",
 		BuildAPIBaseURL(baseURL, version, projectID, region),
 		publisher,
-		modelName,
+		url.PathEscape(modelName),
 		action,
 	)
 }
