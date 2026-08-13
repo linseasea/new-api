@@ -466,7 +466,7 @@ func applyUpstreamPathTemplate(upstreamPath string, info *relaycommon.RelayInfo)
 	if info == nil {
 		return upstreamPath
 	}
-	return strings.ReplaceAll(upstreamPath, advancedCustomModelPlaceholder, info.UpstreamModelName)
+	return strings.ReplaceAll(upstreamPath, advancedCustomModelPlaceholder, url.QueryEscape(info.UpstreamModelName))
 }
 
 func shouldUseGeminiStreamURL(converter string, info *relaycommon.RelayInfo) bool {

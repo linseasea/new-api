@@ -123,6 +123,11 @@ func formatUserLogs(logs []*Log, startIdx int) {
 			delete(otherMap, "admin_info")
 			// Remove operation-audit details (operator/route info), admin-only.
 			delete(otherMap, "audit_info")
+			// Remove param-override audit lines: they can contain operator-
+			// injected secrets (e.g. credentials embedded in request bodies
+			// via param_override) and must not be visible to the requesting
+			// user. Admin log views (GetAllLogs) keep the raw value.
+			delete(otherMap, "po")
 			// delete(otherMap, "reject_reason")
 			// delete(otherMap, "stream_status")
 		}

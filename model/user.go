@@ -997,6 +997,10 @@ func (user *User) ValidateAndFill() (err error) {
 	err = DB.Where("username = ? OR email = ?", username, username).First(user).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
+			// F-48: burn comparable time with a dummy bcrypt compare so
+			// user-not-found responses do not expose a login timing oracle
+			// (existing users with a wrong password take ~bcrypt cost).
+			_ = common.ValidatePasswordAndHash(password, dummyPasswordHash)
 			return ErrInvalidCredentials
 		}
 		return fmt.Errorf("%w: %v", ErrDatabase, err)
@@ -1010,6 +1014,10 @@ func (user *User) ValidateAndFill() (err error) {
 	}
 	return nil
 }
+
+// dummyPasswordHash is a valid bcrypt hash used to equalize login timing for
+// non-existent users (F-48). The plaintext is not used anywhere.
+const dummyPasswordHash = "$2a$10$jIAQd0XS5gz00DKcu2KH7OnjsqwdRqX4Grydmi7XiwrSDu4N9XO.q"
 
 func (user *User) FillUserById() error {
 	if user.Id == 0 {
